@@ -64,7 +64,7 @@ listupEventNotify = (cal_id, now, endTime) ->
       # 通知が複数該当する場合は、直近のものだけ通知
       minutesTo = Math.min.apply(null, remindHits)
       Logger.log "minhit:#{minutesTo} in #{remindHits.join(',')}" if isDebug
-      list.push(generateNotifyMessage(event.getTitle(), minutesTo))
+      list.push(generateNotifyMessage(event.getTitle(), minutesTo, eventTime, remindTime))
 
   text = ''
   for l in list
@@ -98,9 +98,14 @@ getSheet = ->
 ###
 通知イベント表示用メッセージを作成
 ###
-generateNotifyMessage = (title, minutesTo) ->
+generateNotifyMessage = (title, minutesTo, eventTime, remindTime) ->
+  dayDiff = calcDayDiff(eventTime, remindTime)
   if minutesTo <= 0
     mes = "#{title}の時間です。"
+  else if (dayDiff == 1)
+    mes = "明日は、#{title}です。"
+  else if (dayDiff >= 2)
+    mes = "#{title}の#{dayDiff}日前です。"
   else if minutesTo < 60
     mes = "#{title}の#{minutesTo}分前です。"
   else if minutesTo < 60*24
@@ -110,6 +115,12 @@ generateNotifyMessage = (title, minutesTo) ->
   else
     mes = "#{title}の#{Math.round(minutesTo/(60*24))}日前です。"
   mes
+
+calcDayDiff = (eventTime, remindTime) ->
+  eventDay  = (eventTime.getTime()  + (1000 * 60 * 60 * 9))/(1000 * 60 * 60 * 24) >> 0
+  remindDay = (remindTime.getTime() + (1000 * 60 * 60 * 9))/(1000 * 60 * 60 * 24) >> 0
+  Logger.log "eventDay:#{eventDay}, remindDay:#{remindDay}" if isDebug
+  remindDay - eventDay
 
 ###
 Slackへポスト
@@ -125,22 +136,54 @@ postSlack = (payload) ->
   true
 
 ###
-テスト用メソッド
+# テスト用メソッド
 ###
 testGenerateNotifyMessage = ->
-  Logger.log generateNotifyMessage("イベント", -1)
-  Logger.log generateNotifyMessage("イベント", 0)
-  Logger.log generateNotifyMessage("イベント", 59)
-  Logger.log generateNotifyMessage("イベント", 60)
-  Logger.log generateNotifyMessage("イベント", 61)
-  Logger.log generateNotifyMessage("イベント", 80)
-  Logger.log generateNotifyMessage("イベント", 100)
-  Logger.log generateNotifyMessage("イベント", 60*2)
-  Logger.log generateNotifyMessage("イベント", 60*23)
-  Logger.log generateNotifyMessage("イベント", 60*24)
-  Logger.log generateNotifyMessage("イベント", 60*24+60*12)
-  Logger.log generateNotifyMessage("イベント", 60*24*2)
-  Logger.log generateNotifyMessage("イベント", 60*24*7)
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  remindTime = new Date(eventTime)
+
+  Logger.log generateNotifyMessage("イベント", -1, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 0, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 59, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 61, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 80, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 100, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*2, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*23, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*24, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*24+60*12, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*24*2, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", 60*24*7, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  remindTime = new Date(Date.parse("2015/11/28 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  remindTime = new Date(Date.parse("2015/11/29 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  remindTime = new Date(Date.parse("2015/12/01 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/10/27 12:00:00"))
+  remindTime = new Date(Date.parse("2015/11/01 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 23:59:00"))
+  remindTime = new Date(Date.parse("2015/11/28 00:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 23:00:00"))
+  remindTime = new Date(Date.parse("2015/11/28 00:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 23:59:00"))
+  remindTime = new Date(Date.parse("2015/11/29 00:59:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+
   return
 
 testListupEventNotify = ->
@@ -148,7 +191,7 @@ testListupEventNotify = ->
     now = new Date(Date.parse("2015/11/27 12:00:00"))
   else
     now = new Date()
-  endTime.setDate(endTime.getDate() + 7) # 1週間先までの予定の通知を調べます
+  endTime = new Date(now)
   message = listupEventNotify(calendar_id, now, endTime)
   return
 
