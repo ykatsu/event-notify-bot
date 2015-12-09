@@ -9,7 +9,6 @@ GASのトリガーからの１分毎の起動を想定しています。
 token = '<<自分のSlackのtoken>>' # Slackのtoken
 channel_id = '<<投稿するチャンネルのid>>'  # チャンネルID https://api.slack.com/methods/channels.list/testで調べられる
 calendar_id = '<<カレンダーid>>'
-#calender_hodliday_id = 'ja.japanese#holiday@group.v.calendar.google.com'
 bot_name = 'notify'
 bot_icon = ':robot_face:'
 
@@ -64,7 +63,7 @@ listupEventNotify = (cal_id, now, endTime) ->
       # 通知が複数該当する場合は、直近のものだけ通知
       minutesTo = Math.min.apply(null, remindHits)
       Logger.log "minhit:#{minutesTo} in #{remindHits.join(',')}" if isDebug
-      list.push(generateNotifyMessage(event.getTitle(), minutesTo, eventTime, remindTime))
+      list.push(generateNotifyMessage(event.getTitle(), minutesTo, eventTime))
 
   text = ''
   for l in list
@@ -98,7 +97,8 @@ getSheet = ->
 ###
 通知イベント表示用メッセージを作成
 ###
-generateNotifyMessage = (title, minutesTo, eventTime, remindTime) ->
+generateNotifyMessage = (title, minutesTo, eventTime) ->
+  remindTime = new Date(eventTime.getTime() - minutesTo*60000)
   dayDiff = calcDayDiff(eventTime, remindTime)
   if minutesTo <= 0
     mes = "#{title}の時間です。"
@@ -108,19 +108,15 @@ generateNotifyMessage = (title, minutesTo, eventTime, remindTime) ->
     mes = "#{title}の#{dayDiff}日前です。"
   else if minutesTo < 60
     mes = "#{title}の#{minutesTo}分前です。"
-  else if minutesTo < 60*24
-    mes = "#{title}の#{Math.round(minutesTo/60)}時間前です。"
-  else if minutesTo < 60*24*2
-    mes = "明日は、#{title}です。"
   else
-    mes = "#{title}の#{Math.round(minutesTo/(60*24))}日前です。"
+    mes = "#{title}の#{Math.round(minutesTo/60)}時間前です。"
   mes
 
 calcDayDiff = (eventTime, remindTime) ->
   eventDay  = (eventTime.getTime()  + (1000 * 60 * 60 * 9))/(1000 * 60 * 60 * 24) >> 0
   remindDay = (remindTime.getTime() + (1000 * 60 * 60 * 9))/(1000 * 60 * 60 * 24) >> 0
   Logger.log "eventDay:#{eventDay}, remindDay:#{remindDay}" if isDebug
-  remindDay - eventDay
+  eventDay - remindDay
 
 ###
 Slackへポスト
@@ -133,56 +129,48 @@ postSlack = (payload) ->
   app.postMessage(channel_id, payload,
     username: bot_name
     icon_emoji: bot_icon)
-  true
+  return
 
 ###
 # テスト用メソッド
 ###
 testGenerateNotifyMessage = ->
-  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
-  remindTime = new Date(eventTime)
-
-  Logger.log generateNotifyMessage("イベント", -1, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 0, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 59, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 61, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 80, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 100, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*2, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*23, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*24, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*24+60*12, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*24*2, eventTime, remindTime)
-  Logger.log generateNotifyMessage("イベント", 60*24*7, eventTime, remindTime)
-
-  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
-  remindTime = new Date(Date.parse("2015/11/28 12:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
-
-  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
-  remindTime = new Date(Date.parse("2015/11/29 12:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
-
-  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
-  remindTime = new Date(Date.parse("2015/12/01 12:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
-
-  eventTime = new Date(Date.parse("2015/10/27 12:00:00"))
-  remindTime = new Date(Date.parse("2015/11/01 12:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
-
   eventTime = new Date(Date.parse("2015/11/27 23:59:00"))
-  remindTime = new Date(Date.parse("2015/11/28 00:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
 
-  eventTime = new Date(Date.parse("2015/11/27 23:00:00"))
-  remindTime = new Date(Date.parse("2015/11/28 00:00:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+  Logger.log generateNotifyMessage("イベント", -1, eventTime)
+  Logger.log generateNotifyMessage("イベント", 0, eventTime)
+  Logger.log generateNotifyMessage("イベント", 59, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60, eventTime)
+  Logger.log generateNotifyMessage("イベント", 61, eventTime)
+  Logger.log generateNotifyMessage("イベント", 80, eventTime)
+  Logger.log generateNotifyMessage("イベント", 100, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*2, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*23, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*24, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*24+60*12, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*24*2, eventTime)
+  Logger.log generateNotifyMessage("イベント", 60*24*7, eventTime)
 
-  eventTime = new Date(Date.parse("2015/11/27 23:59:00"))
-  remindTime = new Date(Date.parse("2015/11/29 00:59:00"))
-  Logger.log generateNotifyMessage("イベント", 1, eventTime, remindTime)
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 60*24, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 60*24*2, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 12:00:00"))
+  Logger.log generateNotifyMessage("イベント", 60*24*5, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 00:00:00"))
+  Logger.log generateNotifyMessage("イベント", 1, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 01:00:00"))
+  Logger.log generateNotifyMessage("イベント", 60, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 00:59:00"))
+  Logger.log generateNotifyMessage("イベント", 60, eventTime)
+
+  eventTime = new Date(Date.parse("2015/11/27 00:00:00"))
+  Logger.log generateNotifyMessage("イベント", 60*25, eventTime)
 
   return
 
@@ -196,6 +184,6 @@ testListupEventNotify = ->
   return
 
 test = ->
-  testListupEventNotify()
-  # testGenerateNotifyMessage()
+  # testListupEventNotify()
+  testGenerateNotifyMessage()
   return
